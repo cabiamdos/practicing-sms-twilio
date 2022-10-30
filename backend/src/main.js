@@ -13,6 +13,7 @@ const client = require('twilio')(
 );
 
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
+const { request } = require('http');
 
 const server = express();
 
@@ -28,18 +29,47 @@ server.get('/test', (req, res) => {
 
 // we need to configure this endpoint in twilio webhooks API
 server.post('/receive-sms', (req, res) => {
-  const body = req.body;
+  // in twilio the content of the message is extracted by the capital B in Body
+  const messageContent = req.body.Body;
   const state = request.session.step;
 
-  console.log('body', body);
+  console.log('body', messageContent);
   console.state('state', state)
 
   let message;
   if (!state) {
     req.session.step = 1;
-    message = 'this is your first message';
+    message = `Hi, do you want to book an appointment to: \n see the gym \n
+    book a personal trainer \n
+    book a massage`;
   } else {
-    req.session.step = 2;
+    // req.session.step = 2;
+    switch(state) {
+      case 1:
+        if (messageContent.includes('gym')) {
+          request.session.type = 'gym';
+        } else if (messageContent.includes('personal')) {
+          request.session.type = 'personal trainer'
+        } else if (messageContent.includes('massage')) {
+          request.session.type = 'masseur';
+        }
+        if(!request.session.type) {
+          message = `Sorry I didn't understand your request`
+        } else {
+          req.session.step = 2;
+          message = `What date do you want to appoint the ${request.session.type}`
+        }
+        // message = 'step 1'
+        console.log('step 1');
+        break;
+      case 2:
+        message = 'step 2'
+        req.session.step = 3;
+        console.log('step 2');
+        break;
+      default:
+        console.log(`Could not find the step for values: ${state}`);
+    }
     message = 'this is your second message'
   }
 
