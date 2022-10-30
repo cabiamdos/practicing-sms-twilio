@@ -22,6 +22,8 @@ server.use(bodyParser.urlencoded({ extended: true }));
 server.use(session({secret: process.env.SESSION_SECRET}));
 
 const port = process.env.EXPRESS_PORT || 3001;
+const weekdays = process.env.WEEKDAYS.split(',');
+const hourRegex = /\b(\d?\d)\s?([aApP][mM])/g;
 
 server.get('/test', (req, res) => {
   res.send('hello from express')
@@ -63,10 +65,40 @@ server.post('/receive-sms', (req, res) => {
         console.log('step 1');
         break;
       case 2:
+        const weekday = weekdays.filter(w => messageContent.toLowercase().includes(w));
+        console.log('weekday', weekday);
+        console.log('weekdays', weekdays);
+        if (weekday.length === 0) {
+          message = "I'm not sure what day of the week do you want to make a booking for"
+        }
+        else if (weekday.length > 1) {
+          message = `Please select just one day for the booking do you prefer ${weekdays.join(', ')}`
+        } else {
+          req.session.step = 3;
+          request.session.weekday = weekday[0];
+          message = `Do you want to book it on ${weekday[0]}: \n 10am, 11am, 1pm 4pm`;
+        }
+
         message = 'step 2'
-        req.session.step = 3;
         console.log('step 2');
         break;
+      case 3: 
+        const match = hourRegex.exec(messageContent);
+        // '11pm', '11', 'pm'
+        // valid date
+        const {type, weekday} = req.session;
+        console.log('match', match);
+        if (match && match.length === 3) {
+          req.session.step = 4;
+          req.session.time = match[0];
+          message = `Your appointment to see the ${type} on ${weekday} at ${match[0]} was made, please let us know if you need to change the time, otherwise see you than`
+        } else {
+          message = `Sorry I could not understand what time do you want to come to see ${type} on ${weekday}`
+        }
+        break;
+      case 4:
+        const {type, weekday, time} = req.session;
+        message = `your appointment is booked to see the ${type} on ${weekday} at ${time}. If you want to change it please contact us at 555-5555`;
       default:
         console.log(`Could not find the step for values: ${state}`);
     }
