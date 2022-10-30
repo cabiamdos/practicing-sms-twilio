@@ -26,19 +26,23 @@ server.get('/test', (req, res) => {
   res.send('hello from express')
 });
 
+// we need to configure this endpoint in twilio webhooks API
 server.post('/receive-sms', (req, res) => {
   const body = req.body;
-  const state = request.cookies;
+  const state = request.session.step;
 
   console.log('body', body);
   console.state('state', state)
 
   let message;
   if (!state) {
+    req.session.step = 1;
     message = 'this is your first message';
   } else {
+    req.session.step = 2;
     message = 'this is your second message'
   }
+
   const twiml = new MessagingResponse();
   twiml.message(message);
 
